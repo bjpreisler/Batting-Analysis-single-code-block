@@ -43,7 +43,6 @@ batting_combined['AVGPOST'] = batting_combined['H_y'] / batting_combined['AB_y']
 #group this new combined dataset by players and their means
 batting_combined_grouped = batting_combined.groupby('playerID').mean()
 
-
 import numpy as np
 def invert(data):
     if data > 0:
