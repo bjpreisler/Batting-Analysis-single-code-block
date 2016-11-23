@@ -1,3 +1,111 @@
-#python main
-
 import pandas as pd
+
+#Imports the datasets as dataframes to be used in the analysis
+batting = pd.read_csv('C:\\Users\\brian.preisler\\Python\\P2\\baseballdatabank-master\\core\\batting.csv')
+batting_post = pd.read_csv('C:\\Users\\brian.preisler\\Python\\P2\\baseballdatabank-master\\core\\battingpost.csv')
+salaries = pd.read_csv('C:\\Users\\brian.preisler\\Python\\P2\\baseballdatabank-master\\core\\salaries.csv')
+college_playing = pd.read_csv('C:\\Users\\brian.preisler\\Python\\P2\\baseballdatabank-master\\core\\collegeplaying.csv')
+awards_players = pd.read_csv('C:\\Users\\brian.preisler\\Python\\P2\\baseballdatabank-master\\core\\awardsplayers.csv')
+
+#Print out some data to look at columns as well as original size of datasets
+print batting.columns
+print len(batting), len(batting_post)
+print len(batting.groupby('playerID')), len(batting_post.groupby('playerID'))
+
+#only use batting stats from the modern era, in alignment with the norm for MLB stat keeping
+batting_post = batting_post.drop(batting_post[batting_post.yearID < 1900].index)
+batting_raw = batting.loc[:, ['playerID', 'H', 'AB']]
+batting_post_raw = batting_post.loc[:, ['playerID', 'H', 'AB']]
+college_playing_raw = college_playing.loc[:, ['playerID', 'yearID']]
+
+print batting_raw.head(10)
+print batting_post_raw.head(10)
+
+#combine the datasets with an inner join to just keep those players that have stats
+# in the regular season and post season
+
+def combine_dfs(data1, data2):    
+    combined = data1.merge(data2, on = 'playerID', how = 'outer')
+    return combined
+batting_combined = combine_dfs(batting_raw, batting_post_raw)
+
+#print batting_combined
+
+batting_combined_college = combine_dfs(batting_combined, college_playing_raw)
+batting_combined_college['yearID'].fillna(0, inplace=True)
+
+print batting_combined_college
+
+#add an avg column to the dataset for comparison purposes
+batting_combined['AVG'] = batting_combined['H_x'] / batting_combined['AB_x']
+batting_combined['AVGPOST'] = batting_combined['H_y'] / batting_combined['AB_y']
+
+#group this new combined dataset by players and their means
+batting_combined_grouped = batting_combined.groupby('playerID').mean()
+
+
+import numpy as np
+def invert(data):
+    if data > 0:
+        return 1
+    else:
+        return 0   
+    
+def played_in_college(df):
+    return df['yearID'].apply(invert)
+          
+print played_in_college(batting_combined_college)
+
+%matplotlib inline
+
+import numpy as np
+import matplotlib as plt 
+plt.rcParams.update({'figure.max_open_warning': 0})
+
+print batting_combined_grouped['AVG'].mean(), batting_combined_grouped['AVGPOST'].mean()
+
+avg_avgpost = batting_combined_grouped.loc[:,['AVG', 'AVGPOST']]
+
+#checking out normality of distributions
+avg_avgpost.plot.hist(by='AVG', bins=30)
+
+import scipy
+from scipy import stats
+
+#running a paired t-test to determine if diff of means could be due to chance
+scipy.stats.ttest_rel(avg_avgpost.loc[:, 'AVG'], avg_avgpost.loc[:, 'AVGPOST'], axis=0, nan_policy='omit')
+
+#create a difference column to see if players performed better or worse in post season
+#batting_combined['AVG_DIFF'] = batting_combined['AVGPOST'] - batting_combined['AVG']
+
+#investigate whether salaries have an impact
+batting_combined_salaries = combine_dfs(batting_combined, salaries)
+
+#make sure to group before looking at correlations
+batting_combined_grouped_salaries = batting_combined_salaries.groupby('playerID').mean()
+
+#check and see if any player variable correlate to their post season performance
+#avg_diff_salaries = batting_combined_grouped_salaries.loc[:,['AVG_DIFF', 'salary']]
+#test1 = avg_diff_salaries.corr()
+#print test1
+
+
+batting_combined_college = batting_combined.merge(college_playing, \
+    on = 'playerID', how = 'outer')
+
+print batting_combined_college
+
+batting_combined_grouped_college = batting_combined_college.groupby('playerID').mean()
+batting_combined_grouped_college.iloc[:,35]
+#check and see if any player variable correlate to their post season performance
+#avg_diff_salaries = batting_combined_grouped_salaries.loc[:,['AVG_DIFF', 'salary']]
+#test1 = avg_diff_salaries.corr()
+#print test1
+
+
+#print batting_combined_college.head(3)
+
+#print batting_combined_grouped_college
+
+#print avg_diff_salaries
+
